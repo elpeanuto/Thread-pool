@@ -1,4 +1,4 @@
-package edu.elpeanuto.threads.ThreadPool;
+package edu.elpeanuto.threads.threadPool;
 
 public interface ThreadPool<T> {
     void start();

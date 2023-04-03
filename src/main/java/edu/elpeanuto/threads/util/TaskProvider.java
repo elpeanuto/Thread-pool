@@ -1,6 +1,6 @@
 package edu.elpeanuto.threads.util;
 
-import edu.elpeanuto.threads.ThreadPool.ThreadPool;
+import edu.elpeanuto.threads.threadPool.ThreadPool;
 
 public class TaskProvider extends Thread {
 

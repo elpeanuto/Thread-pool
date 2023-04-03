@@ -1,7 +1,7 @@
 package edu.elpeanuto.threads;
 
-import edu.elpeanuto.threads.ThreadPool.ThreadPool;
-import edu.elpeanuto.threads.ThreadPool.ThreadPoolImpl;
+import edu.elpeanuto.threads.threadPool.ThreadPool;
+import edu.elpeanuto.threads.threadPool.ThreadPoolImpl;
 import edu.elpeanuto.threads.util.Task;
 import edu.elpeanuto.threads.util.TaskProvider;
 
