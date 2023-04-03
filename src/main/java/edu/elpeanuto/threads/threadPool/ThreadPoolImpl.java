@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ThreadPoolImpl implements ThreadPool<Task> {
 
@@ -19,6 +20,10 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
     private boolean isRunning = false;
     private boolean isPaused = false;
     private boolean softShutDown = false;
+
+    private int abandonedTasksCounter = 0;
+    AtomicInteger executedTasksCounter = new AtomicInteger(0);
+    private int addCallCounter = 0;
 
     public ThreadPoolImpl(int queueSize, int poolSize) {
         this.queueSize = queueSize;
@@ -54,13 +59,16 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
     }
 
     public synchronized void add(Task task) throws InterruptedException {
+        addCallCounter++;
         if (!isRunning) {
             System.err.println("ThreadPool isn't working");
+            abandonedTasksCounter++;
             return;
         }
 
         if(isPaused) {
             System.out.println("ThreadPool is paused");
+            abandonedTasksCounter++;
             return;
         }
 
@@ -70,6 +78,7 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
             queueTwo.put(task);
         } else {
             System.out.println("Task is rejected because both queues are full");
+            abandonedTasksCounter++;
         }
 
         System.out.println("\nFirst queue size:" + queueOne.size() +
@@ -136,6 +145,14 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
         isRunning = false;
     }
 
+    public void printStatistic() {
+        System.out.println("addCallCounter: " +  addCallCounter);
+        System.out.println("abandonedTasksCounter: " +  abandonedTasksCounter);
+        System.out.println("executedTasksCounter: " +  executedTasksCounter.get());
+        System.out.println("firstQueueSize: " +  queueOne.size());
+        System.out.println("secondQueueSize: " +  queueTwo.size());
+    }
+
     private class Worker extends Thread {
 
         private final BlockingQueue<Task> queue;
@@ -159,6 +176,7 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
                     Task task = queue.take();
                     System.out.println(Thread.currentThread().getName() + " got task from: " + Integer.toHexString(System.identityHashCode(queue)));
                     task.task();
+                    executedTasksCounter.incrementAndGet();
                     System.out.println(Thread.currentThread().getName() + " task is done");
 
                 } catch (InterruptedException e) {

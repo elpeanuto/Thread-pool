@@ -9,6 +9,8 @@ public interface ThreadPool<T> {
 
     void resume();
 
+    void printStatistic();
+
     void shutdown() throws InterruptedException;
 
     void softShutdown() throws InterruptedException;
