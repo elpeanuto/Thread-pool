@@ -4,8 +4,10 @@ import edu.elpeanuto.threads.util.Task;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ThreadPoolImpl implements ThreadPool<Task> {
@@ -18,17 +20,17 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
     private final int queueSize;
 
     private boolean isRunning = false;
-    private boolean isPaused = false;
-    private boolean softShutDown = false;
+    private final AtomicBoolean softShutdown = new AtomicBoolean(false);
+    private final AtomicBoolean isPaused = new AtomicBoolean(false);
 
     private int abandonedTasksCounter = 0;
-    AtomicInteger executedTasksCounter = new AtomicInteger(0);
     private int addCallCounter = 0;
+    private final AtomicInteger executedTasksCounter = new AtomicInteger(0);
 
     public ThreadPoolImpl(int queueSize, int poolSize) {
         this.queueSize = queueSize;
-        this.queueOne = new LinkedBlockingQueue<>(queueSize);
-        this.queueTwo = new LinkedBlockingQueue<>(queueSize);
+        this.queueOne = new ArrayBlockingQueue<>(queueSize);
+        this.queueTwo = new ArrayBlockingQueue<>(queueSize);
         firstQueuePool = new ArrayList<>();
         secondQueuePool = new ArrayList<>();
 
@@ -41,24 +43,19 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
         }
     }
 
-    public synchronized void start() {
+    public void start() {
         if (isRunning) {
             System.err.println("ThreadPool is already running");
             return;
         }
 
-        for (Thread thread : firstQueuePool) {
-            thread.start();
-        }
-
-        for (Thread thread : secondQueuePool) {
-            thread.start();
-        }
+        firstQueuePool.forEach(Thread::start);
+        secondQueuePool.forEach(Thread::start);
 
         isRunning = true;
     }
 
-    public synchronized void add(Task task) throws InterruptedException {
+    public void add(Task task) throws InterruptedException {
         addCallCounter++;
         if (!isRunning) {
             System.err.println("ThreadPool isn't working");
@@ -66,7 +63,7 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
             return;
         }
 
-        if(isPaused) {
+        if(isPaused.get()) {
             System.out.println("ThreadPool is paused");
             abandonedTasksCounter++;
             return;
@@ -85,40 +82,30 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
                 "\nSecond queue size:" + queueTwo.size() + "\n");
     }
 
-    public synchronized void pause() {
-        if (!isRunning || isPaused) {
+    public void pause() {
+        if (!isRunning || isPaused.get()) {
             System.err.println("ThreadPool isn't working");
             return;
         }
 
-        isPaused = true;
+        isPaused.set(true);
     }
 
-    public synchronized void resume() {
-        if (!isRunning || !isPaused) {
+    public void resume() {
+        if (!isRunning || !isPaused.get()) {
             System.err.println("ThreadPool isn't working");
             return;
         }
 
-        for (Worker worker : firstQueuePool) {
-            worker.resumeWorker();
-        }
+        firstQueuePool.forEach(Worker::resumeWorker);
+        secondQueuePool.forEach(Worker::resumeWorker);
 
-        for (Worker worker : secondQueuePool) {
-            worker.resumeWorker();
-        }
-
-        isPaused = false;
+        isPaused.set(false);
     }
 
-    public synchronized void shutdown() throws InterruptedException {
-        for (Thread thread : firstQueuePool) {
-            thread.interrupt();
-        }
-
-        for (Thread thread : secondQueuePool) {
-            thread.interrupt();
-        }
+    public void shutdown() throws InterruptedException {
+        firstQueuePool.forEach(Thread::interrupt);
+        secondQueuePool.forEach(Thread::interrupt);
 
         for (Thread thread : firstQueuePool) {
             thread.join();
@@ -131,8 +118,8 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
         isRunning = false;
     }
 
-    public synchronized void softShutdown() throws InterruptedException {
-        softShutDown = true;
+    public void softShutdown() throws InterruptedException {
+        softShutdown.set(true);
 
         for (Thread thread : firstQueuePool) {
             thread.join();
@@ -164,10 +151,10 @@ public class ThreadPoolImpl implements ThreadPool<Task> {
 
         @Override
         public void run() {
-            while (!Thread.currentThread().isInterrupted() && !softShutDown) {
+            while (!Thread.currentThread().isInterrupted() && !softShutdown.get()) {
 
                 try {
-                    if (isPaused) {
+                    if (isPaused.get()) {
                         synchronized (this) {
                             wait();
                         }

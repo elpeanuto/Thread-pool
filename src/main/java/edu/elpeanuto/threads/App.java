@@ -34,8 +34,8 @@ public class App {
         System.out.println("\nThreadPool paused\n");
         threadPool.pause();
         Thread.sleep(PAUSE_TIME);
-        threadPool.resume();
         System.out.println("\nThreadPool resumed\n");
+        threadPool.resume();
 
         Thread.sleep(RUNNING_TIME);
 
